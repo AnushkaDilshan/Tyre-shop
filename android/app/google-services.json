@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "551111069993",
+    "project_id": "tyre-shop-1db0a",
+    "storage_bucket": "tyre-shop-1db0a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551111069993:android:e38c3b09031f2e9b9d6738",
+        "android_client_info": {
+          "package_name": "com.example.tyre_shop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4wPbcrSGtUULDdsupYOFL9OfXZcyClbo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
