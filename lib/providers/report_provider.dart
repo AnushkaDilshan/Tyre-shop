@@ -80,8 +80,8 @@ class ReportProvider extends ChangeNotifier {
 
       final totalRevenue =
           sales.fold(0.0, (sum, s) => sum + s.netAmount);
-      final totalProfit =
-          sales.fold(0.0, (sum, s) => sum + s.totalProfit);
+     final totalProfit =
+    sales.fold(0.0, (sum, s) => sum + s.totalProfit - s.discountAmount);
       final totalExpenses =
           expenses.fold(0.0, (sum, e) => sum + e.amount);
       final netProfit = totalProfit - totalExpenses;

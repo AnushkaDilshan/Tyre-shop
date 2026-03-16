@@ -29,7 +29,7 @@ class SalesProvider extends ChangeNotifier {
     final today = AppHelpers.startOfDay(DateTime.now());
     return _sales
         .where((s) => s.date.isAfter(today))
-        .fold(0, (sum, s) => sum + s.totalProfit);
+        .fold(0, (sum, s) => sum + s.totalProfit - s.discountAmount);
   }
 
   int get todaySalesCount {
@@ -104,11 +104,12 @@ class SalesProvider extends ChangeNotifier {
     _selectedDate = date;
     notifyListeners();
   }
-void clearData() {
-  _sales = [];
-  _isLoading = false;
-  notifyListeners();
-}
+
+  void clearData() {
+    _sales = [];
+    _isLoading = false;
+    notifyListeners();
+  }
 
   Future<List<Sale>> getSalesForRange(DateTime from, DateTime to) async {
     return await _service.getSales(from: from, to: to);
