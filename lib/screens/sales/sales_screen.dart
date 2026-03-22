@@ -71,7 +71,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.w500)),
                   Text(
-                      'Total: ${AppHelpers.formatCurrency(sales.fold(0, (s, e) => s + e.netAmount))}',
+                      'Total: ${AppHelpers.formatCurrency(sales.fold(0.0, (s, e) => s + e.netAmount))}',
                       style: const TextStyle(
                           color: AppTheme.accentColor,
                           fontWeight: FontWeight.w600)),
@@ -171,6 +171,9 @@ class _SaleTile extends StatelessWidget {
           Text('Discount: ${AppHelpers.formatCurrency(sale.discountAmount)}',
               style:
                   const TextStyle(color: AppTheme.warningColor, fontSize: 12)),
+        if (sale.serviceCharge > 0)
+          Text('Service: ${AppHelpers.formatCurrency(sale.serviceCharge)}',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
       ]),
     );
   }
@@ -209,12 +212,24 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
   String? _customerId;
   String? _customerName;
   final _discountCtrl = TextEditingController();
+  final _serviceChargeCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
-  double get _subtotal => _cartItems.fold(0, (sum, i) => sum + i.totalSelling);
-  double get _discount => double.tryParse(_discountCtrl.text) ?? 0;
-  double get _total => _subtotal - _discount;
-  double get _profit => _cartItems.fold(0, (sum, i) => sum + i.totalProfit);
+  double get _subtotal =>
+      _cartItems.fold(0.0, (sum, i) => sum + i.totalSelling);
+  double get _discount => double.tryParse(_discountCtrl.text) ?? 0.0;
+  double get _serviceCharge => double.tryParse(_serviceChargeCtrl.text) ?? 0.0;
+  double get _total => _subtotal - _discount + _serviceCharge;
+  double get _profit =>
+      _cartItems.fold(0.0, (sum, i) => sum + i.totalProfit) + _serviceCharge;
+
+  @override
+  void dispose() {
+    _discountCtrl.dispose();
+    _serviceChargeCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
 
   void _addItemFromInventory(InventoryItem inv, int qty) {
     final existing = _cartItems.indexWhere((i) => i.itemId == inv.id);
@@ -259,6 +274,7 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
         customerId: _customerId,
         customerName: _customerName,
         discountAmount: _discount,
+        serviceCharge: _serviceCharge,
         paymentMethod: _paymentMethod,
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text);
     if (ok && mounted) {
@@ -308,6 +324,7 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                   controller: ctrl,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
+                // ── Customer ──────────────────────────────────
                 DropdownButtonFormField<String>(
                   value: _customerId,
                   dropdownColor: AppTheme.cardColor,
@@ -330,6 +347,8 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                   }),
                 ),
                 const SizedBox(height: 16),
+
+                // ── Add Items ─────────────────────────────────
                 const Text('Add Items',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
                 const SizedBox(height: 8),
@@ -348,6 +367,8 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                     item: item,
                     onRemove: () => setState(() => _cartItems
                         .removeWhere((i) => i.itemId == item.itemId)))),
+
+                // ── Subtotal ──────────────────────────────────
                 if (_cartItems.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Divider(color: Colors.white12),
@@ -362,6 +383,8 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                       ]),
                 ],
                 const SizedBox(height: 12),
+
+                // ── Discount ──────────────────────────────────
                 TextFormField(
                     controller: _discountCtrl,
                     keyboardType: TextInputType.number,
@@ -372,6 +395,20 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                             color: AppTheme.textMuted)),
                     onChanged: (_) => setState(() {})),
                 const SizedBox(height: 12),
+
+                // ── Service Charge ────────────────────────────
+                TextFormField(
+                    controller: _serviceChargeCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                        labelText: 'Service Charge',
+                        prefixIcon: Icon(Icons.build_circle_outlined,
+                            color: AppTheme.textMuted)),
+                    onChanged: (_) => setState(() {})),
+                const SizedBox(height: 12),
+
+                // ── Payment Method ────────────────────────────
                 DropdownButtonFormField<String>(
                   value: _paymentMethod,
                   dropdownColor: AppTheme.cardColor,
@@ -388,6 +425,8 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                   onChanged: (v) => setState(() => _paymentMethod = v!),
                 ),
                 const SizedBox(height: 12),
+
+                // ── Notes ─────────────────────────────────────
                 TextFormField(
                     controller: _notesCtrl,
                     style: const TextStyle(color: Colors.white),
@@ -397,6 +436,8 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                         prefixIcon: Icon(Icons.notes_outlined,
                             color: AppTheme.textMuted))),
                 const SizedBox(height: 20),
+
+                // ── Summary Card ──────────────────────────────
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -431,9 +472,26 @@ class _AddSaleSheetState extends State<AddSaleSheet> {
                                     fontWeight: FontWeight.w600)),
                           ]),
                     ],
+                    if (_serviceCharge > 0) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Service charge:',
+                                style: TextStyle(
+                                    color: AppTheme.textMuted, fontSize: 12)),
+                            Text(AppHelpers.formatCurrency(_serviceCharge),
+                                style: const TextStyle(
+                                    color: AppTheme.accentColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                    ],
                   ]),
                 ),
                 const SizedBox(height: 12),
+
+                // ── Record Button ─────────────────────────────
                 SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -537,7 +595,7 @@ class _ItemPickerSheetState extends State<_ItemPickerSheet>
   }
 }
 
-// ─── Item List (FIXED: proper card spacing & separation) ─────
+// ─── Item List ────────────────────────────────────────────────
 
 class _ItemList extends StatelessWidget {
   final List<InventoryItem> items;
@@ -554,7 +612,6 @@ class _ItemList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: items.length,
-      // ── Separator gives a clear visual gap between items ──
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
         final item = items[i];
@@ -581,7 +638,6 @@ class _ItemList extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Item icon
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -597,8 +653,6 @@ class _ItemList extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-
-                    // Name + subtitle
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,8 +681,6 @@ class _ItemList extends StatelessWidget {
                         ],
                       ),
                     ),
-
-                    // Price + profit
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [

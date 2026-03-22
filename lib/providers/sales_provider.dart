@@ -22,14 +22,14 @@ class SalesProvider extends ChangeNotifier {
     final today = AppHelpers.startOfDay(DateTime.now());
     return _sales
         .where((s) => s.date.isAfter(today))
-        .fold(0, (sum, s) => sum + s.netAmount);
+        .fold(0.0, (sum, s) => sum + s.netAmount);
   }
 
   double get todayProfit {
     final today = AppHelpers.startOfDay(DateTime.now());
     return _sales
         .where((s) => s.date.isAfter(today))
-        .fold(0, (sum, s) => sum + s.totalProfit - s.discountAmount);
+        .fold(0.0, (sum, s) => sum + s.totalProfit - s.discountAmount);
   }
 
   int get todaySalesCount {
@@ -68,12 +68,14 @@ class SalesProvider extends ChangeNotifier {
     String? customerId,
     String? customerName,
     double discountAmount = 0,
+    double serviceCharge = 0,
     required String paymentMethod,
     String? notes,
   }) async {
     try {
       final totalAmount = items.fold(0.0, (sum, i) => sum + i.totalSelling);
-      final totalProfit = items.fold(0.0, (sum, i) => sum + i.totalProfit);
+      final totalProfit =
+          items.fold(0.0, (sum, i) => sum + i.totalProfit) + serviceCharge;
       final sale = Sale(
         id: _uuid.v4(),
         customerId: customerId,
@@ -82,6 +84,7 @@ class SalesProvider extends ChangeNotifier {
         totalAmount: totalAmount,
         totalProfit: totalProfit,
         discountAmount: discountAmount,
+        serviceCharge: serviceCharge,
         paymentMethod: paymentMethod,
         notes: notes,
         date: DateTime.now(),

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class SaleItem {
   final String itemId;
   final String itemName;
-  final String itemType; // 'tyre' or 'tube'
+  final String itemType;
   final String category;
   final String brand;
   final String size;
@@ -43,16 +43,16 @@ class SaleItem {
       };
 
   factory SaleItem.fromMap(Map<String, dynamic> map) => SaleItem(
-        itemId: map['itemId'] ?? '',
-        itemName: map['itemName'] ?? '',
-        itemType: map['itemType'] ?? '',
-        category: map['category'] ?? '',
-        brand: map['brand'] ?? '',
-        size: map['size'] ?? '',
-        quantity: map['quantity'] ?? 0,
-        buyingPrice: (map['buyingPrice'] ?? 0).toDouble(),
-        sellingPrice: (map['sellingPrice'] ?? 0).toDouble(),
-        profit: (map['profit'] ?? 0).toDouble(),
+        itemId: map['itemId']?.toString() ?? '',
+        itemName: map['itemName']?.toString() ?? '',
+        itemType: map['itemType']?.toString() ?? '',
+        category: map['category']?.toString() ?? '',
+        brand: map['brand']?.toString() ?? '',
+        size: map['size']?.toString() ?? '',
+        quantity: (map['quantity'] as num?)?.toInt() ?? 0,
+        buyingPrice: (map['buyingPrice'] as num?)?.toDouble() ?? 0.0,
+        sellingPrice: (map['sellingPrice'] as num?)?.toDouble() ?? 0.0,
+        profit: (map['profit'] as num?)?.toDouble() ?? 0.0,
       );
 }
 
@@ -64,6 +64,7 @@ class Sale {
   final double totalAmount;
   final double totalProfit;
   final double discountAmount;
+  final double serviceCharge;
   final String paymentMethod;
   final String? notes;
   final DateTime date;
@@ -76,14 +77,15 @@ class Sale {
     required this.items,
     required this.totalAmount,
     required this.totalProfit,
-    this.discountAmount = 0,
+    this.discountAmount = 0.0,
+    this.serviceCharge = 0.0,
     required this.paymentMethod,
     this.notes,
     required this.date,
     required this.userId,
   });
 
-  double get netAmount => totalAmount - discountAmount;
+  double get netAmount => totalAmount - discountAmount + serviceCharge;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -93,6 +95,7 @@ class Sale {
         'totalAmount': totalAmount,
         'totalProfit': totalProfit,
         'discountAmount': discountAmount,
+        'serviceCharge': serviceCharge,
         'paymentMethod': paymentMethod,
         'notes': notes,
         'date': Timestamp.fromDate(date),
@@ -100,19 +103,20 @@ class Sale {
       };
 
   factory Sale.fromMap(Map<String, dynamic> map) => Sale(
-        id: map['id'] ?? '',
-        customerId: map['customerId'],
-        customerName: map['customerName'],
+        id: map['id']?.toString() ?? '',
+        customerId: map['customerId']?.toString(),
+        customerName: map['customerName']?.toString(),
         items: (map['items'] as List<dynamic>? ?? [])
             .map((e) => SaleItem.fromMap(e as Map<String, dynamic>))
             .toList(),
-        totalAmount: (map['totalAmount'] ?? 0).toDouble(),
-        totalProfit: (map['totalProfit'] ?? 0).toDouble(),
-        discountAmount: (map['discountAmount'] ?? 0).toDouble(),
-        paymentMethod: map['paymentMethod'] ?? 'Cash',
-        notes: map['notes'],
+        totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 0.0,
+        totalProfit: (map['totalProfit'] as num?)?.toDouble() ?? 0.0,
+        discountAmount: (map['discountAmount'] as num?)?.toDouble() ?? 0.0,
+        serviceCharge: (map['serviceCharge'] as num?)?.toDouble() ?? 0.0,
+        paymentMethod: map['paymentMethod']?.toString() ?? 'Cash',
+        notes: map['notes']?.toString(),
         date: (map['date'] as Timestamp).toDate(),
-        userId: map['userId'] ?? '',
+        userId: map['userId']?.toString() ?? '',
       );
 
   factory Sale.fromDoc(DocumentSnapshot doc) {
