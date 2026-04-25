@@ -11,7 +11,7 @@ class AppConstants {
   static const String tyresCollection = 'tyres';
   static const String tubesCollection = 'tubes';
   static const String customersCollection = 'customers';
-
+  static const String creditSalesCollection = 'credit_sales';
   // Tyre categories
   static const List<String> tyreCategories = [
     'Car Tyre',

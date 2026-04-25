@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tyre_shop/models/credit_sale_model.dart';
+import 'package:uuid/uuid.dart';
 import '../models/sale_model.dart';
 import '../models/expense_model.dart';
 import '../models/inventory_model.dart';
@@ -298,5 +300,139 @@ class FirebaseService {
         }
       });
     } catch (_) {}
+  }
+
+  CollectionReference get _creditSalesRef =>
+      _db.collection(AppConstants.creditSalesCollection);
+
+  /// Save a new credit sale (goods borrowed, not yet paid).
+  Future<void> addCreditSale(CreditSale creditSale) async {
+    try {
+      await _creditSalesRef.doc(creditSale.id).set(creditSale.toMap());
+    } catch (_) {}
+    // Decrement stock immediately — goods left the shop
+    for (final item in creditSale.items) {
+      try {
+        await _decrementStock(item.itemId, item.itemType, item.quantity);
+      } catch (_) {}
+    }
+    // Update customer stats if linked
+    if (creditSale.customerId != null) {
+      try {
+        await _updateCustomerStats(
+            creditSale.customerId!, creditSale.netAmount);
+      } catch (_) {}
+    }
+  }
+
+  /// Record a payment (partial or full) against an existing credit sale.
+  Future<bool> recordCreditPayment({
+    required String creditSaleId,
+    required CreditPayment payment,
+    required double newPaidAmount,
+  }) async {
+    final ref = _creditSalesRef.doc(creditSaleId);
+
+    // Don't use a transaction — just use update() directly
+    // Transactions can fail silently when offline or rules mismatch
+    final snap = await ref.get();
+    if (!snap.exists) return false;
+
+    final data = snap.data() as Map<String, dynamic>;
+    final existingPayments = (data['payments'] as List<dynamic>? ?? [])
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+    existingPayments.add(payment.toMap());
+
+    await ref.update({
+      'paidAmount': newPaidAmount,
+      'payments': existingPayments,
+    });
+
+    return true;
+  }
+
+  /// Delete a credit sale (and optionally restore stock).
+  Future<void> deleteCreditSale(String creditSaleId,
+      {List<Map<String, dynamic>>? itemsToRestore}) async {
+    try {
+      await _creditSalesRef.doc(creditSaleId).delete();
+    } catch (_) {}
+    if (itemsToRestore != null) {
+      for (final item in itemsToRestore) {
+        try {
+          final ref = _inventoryRef(item['itemType'] as String)
+              .doc(item['itemId'] as String);
+          await _db.runTransaction((tx) async {
+            final snap = await tx.get(ref);
+            if (snap.exists) {
+              final current =
+                  (snap.data() as Map<String, dynamic>)['stockQuantity'] ?? 0;
+              tx.update(ref, {
+                'stockQuantity': current + (item['quantity'] as int),
+                'updatedAt': Timestamp.now(),
+              });
+            }
+          });
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// Real-time stream of all credit sales for the current user.
+  Stream<List<CreditSale>> getCreditSalesStream() {
+    return _creditSalesRef
+        .where('userId', isEqualTo: userId) // ← THIS must be here
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => CreditSale.fromMap(d.data() as Map<String, dynamic>))
+            .toList());
+  }
+
+  /// One-time fetch for reporting.
+  Future<List<CreditSale>> getCreditSales(
+      {DateTime? from, DateTime? to}) async {
+    try {
+      Query query = _creditSalesRef.where('userId', isEqualTo: userId);
+      if (from != null) {
+        query = query.where('date',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(from));
+      }
+      if (to != null) {
+        query =
+            query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(to));
+      }
+      final snap = await query.orderBy('date', descending: true).get();
+      return snap.docs
+          .map((d) => CreditSale.fromMap(d.data() as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// When a credit sale is fully settled, write a proper Sale record
+  /// so it appears in the Sales screen and daily revenue totals.
+  Future<void> addSaleFromCreditSale(CreditSale creditSale) async {
+    try {
+      final sale = Sale(
+        id: const Uuid().v4(),
+        customerId: creditSale.customerId,
+        customerName: creditSale.customerName,
+        items: creditSale.items,
+        totalAmount: creditSale.totalAmount,
+        totalProfit: creditSale.totalProfit,
+        discountAmount: creditSale.discountAmount,
+        serviceCharge: creditSale.serviceCharge,
+        paymentMethod: 'Credit (Settled)',
+        notes: creditSale.notes,
+        date: DateTime.now(),
+        userId: userId,
+      );
+      await _salesRef.doc(sale.id).set(sale.toMap());
+    } catch (e) {
+      print('addSaleFromCreditSale error: $e');
+    }
   }
 }

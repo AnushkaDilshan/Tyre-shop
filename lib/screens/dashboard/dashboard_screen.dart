@@ -5,11 +5,13 @@ import '../../providers/sales_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/credit_sales_provider.dart'; // ← ADD
 import '../../utils/app_theme.dart';
 import '../../utils/app_helpers.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/alert_banner.dart';
 import '../sales/sales_screen.dart';
+import '../sales/credit_sales_screen.dart'; // ← ADD
 import '../expenses/expenses_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../reports/reports_screen.dart';
@@ -27,6 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<Widget> _screens = const [
     _DashboardHome(),
     SalesScreen(),
+    CreditSalesScreen(), // ← ADD
     InventoryScreen(),
     ReportsScreen(),
   ];
@@ -39,6 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<ExpenseProvider>().clearData();
       context.read<InventoryProvider>().clearData();
       context.read<CustomerProvider>().clearData();
+      context.read<CreditSalesProvider>().clearData(); // ← ADD
       _loadAll();
     });
   }
@@ -48,6 +52,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     context.read<ExpenseProvider>().loadExpenses();
     context.read<InventoryProvider>().loadInventory();
     context.read<CustomerProvider>().loadCustomers();
+    context.read<CreditSalesProvider>().loadCreditSales(); // ← ADD
   }
 
   @override
@@ -66,6 +71,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icon(Icons.point_of_sale_outlined),
               activeIcon: Icon(Icons.point_of_sale),
               label: 'Sales'),
+          BottomNavigationBarItem(
+              // ← ADD
+              icon: Icon(Icons.credit_card_outlined),
+              activeIcon: Icon(Icons.credit_card),
+              label: 'Credit'),
           BottomNavigationBarItem(
               icon: Icon(Icons.inventory_2_outlined),
               activeIcon: Icon(Icons.inventory_2),
@@ -88,6 +98,7 @@ class _DashboardHome extends StatelessWidget {
     context.read<ExpenseProvider>().loadExpenses();
     context.read<InventoryProvider>().loadInventory();
     context.read<CustomerProvider>().loadCustomers();
+    context.read<CreditSalesProvider>().loadCreditSales(); // ← ADD
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Data refreshed!'),
       duration: Duration(seconds: 1),
@@ -101,6 +112,7 @@ class _DashboardHome extends StatelessWidget {
     final expenses = context.watch<ExpenseProvider>();
     final inventory = context.watch<InventoryProvider>();
     final customers = context.watch<CustomerProvider>();
+    final credit = context.watch<CreditSalesProvider>(); // ← ADD
     final netProfit = sales.todayProfit - expenses.todayExpenses;
 
     return Scaffold(
@@ -128,11 +140,11 @@ class _DashboardHome extends StatelessWidget {
             color: AppTheme.secondaryColor,
             onSelected: (v) async {
               if (v == 'logout') {
-                // Clear all data before logout
                 context.read<SalesProvider>().clearData();
                 context.read<ExpenseProvider>().clearData();
                 context.read<InventoryProvider>().clearData();
                 context.read<CustomerProvider>().clearData();
+                context.read<CreditSalesProvider>().clearData(); // ← ADD
 
                 await context.read<AuthProvider>().signOut();
                 if (context.mounted) {
@@ -181,6 +193,19 @@ class _DashboardHome extends StatelessWidget {
                     '${inventory.outOfStockItems.length} item(s) out of stock!',
                 onTap: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const InventoryScreen())))
+          ],
+          // ── Credit overdue alert ──────────────────────────────── ← ADD
+          if (credit.overdueCount > 0) ...[
+            const SizedBox(height: 8),
+            AlertBanner(
+                icon: Icons.credit_card_off_outlined,
+                color: const Color(0xFFE67E22),
+                title:
+                    '${credit.overdueCount} credit sale(s) overdue! Total: ${AppHelpers.formatCurrency(credit.totalOutstanding)}',
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CreditSalesScreen()))),
           ],
           const SizedBox(height: 16),
           _sectionHeader('Today\'s Summary'),
@@ -248,10 +273,10 @@ class _DashboardHome extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
                 child: StatCard(
-                    title: 'Low Stock',
-                    value: inventory.lowStockCount.toString(),
-                    icon: Icons.warning_amber,
-                    color: AppTheme.warningColor)),
+                    title: 'Credit Due', // ← CHANGED
+                    value: AppHelpers.formatCurrency(credit.totalOutstanding),
+                    icon: Icons.credit_card_outlined,
+                    color: const Color(0xFFE67E22))),
           ]),
           const SizedBox(height: 24),
           _sectionHeader('Quick Actions'),
@@ -272,13 +297,13 @@ class _DashboardHome extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const ExpensesScreen()))),
             const SizedBox(width: 12),
             _QuickAction(
-                icon: Icons.add_box_outlined,
-                label: 'Add Stock',
-                color: const Color(0xFF7C4DFF),
+                icon: Icons.credit_card_outlined, // ← CHANGED
+                label: 'Credit Sale',
+                color: const Color(0xFFE67E22),
                 onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const InventoryScreen()))),
+                        builder: (_) => const CreditSalesScreen()))),
           ]),
           const SizedBox(height: 32),
         ]),

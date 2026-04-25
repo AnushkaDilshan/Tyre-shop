@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tyre_shop/firebase_options.dart';
+import 'package:tyre_shop/providers/credit_sales_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/sales_provider.dart';
 import 'providers/expense_provider.dart';
@@ -32,6 +33,7 @@ class TyreShopApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => ReportProvider()),
+        ChangeNotifierProvider(create: (_) => CreditSalesProvider()),
       ],
       child: MaterialApp(
         title: 'Tyre Shop Manager',
